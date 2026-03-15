@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Multi-Sensory Toy Adaptive Engine</title>
+<link href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+*{font-family:'Nunito',sans-serif;-webkit-tap-highlight-color:transparent}
+:root{--primary:#4A6CF7;--primary-light:#7B93FA;--primary-dark:#2E4FD9;--accent:#FF6B9D;--success:#10B981;--warning:#F59E0B;--bg:#F0F4FF;--card:#FFFFFF;--text:#1E293B;--text-light:#64748B;--haptic:#8B5CF6}
+body{background:var(--bg);color:var(--text);overscroll-behavior:none;min-height:100vh}
+.pulse-ring{animation:pulseRing 2s ease-out infinite}
+@keyframes pulseRing{0%{transform:scale(.8);opacity:1}100%{transform:scale(2.2);opacity:0}}
+.bounce-in{animation:bounceIn .5s cubic-bezier(.68,-.55,.27,1.55)}
+@keyframes bounceIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.slide-up{animation:slideUp .4s ease-out}
+@keyframes slideUp{0%{transform:translateY(30px);opacity:0}100%{transform:translateY(0);opacity:1}}
+.haptic-pulse{animation:hapticPulse .3s ease-in-out}
+@keyframes hapticPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.glow{box-shadow:0 0 20px rgba(74,108,247,.3)}
+.sensory-btn{transition:all .2s;position:relative;overflow:hidden}
+.sensory-btn:active{transform:scale(.95)}
+.sensory-btn::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--x,50%) var(--y,50%),rgba(255,255,255,.3) 0%,transparent 60%);opacity:0;transition:opacity .3s}
+.sensory-btn:active::after{opacity:1}
+.progress-ring{transform:rotate(-90deg)}
+.wave-bar{animation:waveBar 1s ease-in-out infinite;transform-origin:bottom}
+@keyframes waveBar{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.modal-overlay{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.toy-card{transition:all .3s cubic-bezier(.4,0,.2,1)}
+.toy-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.badge{font-size:.65rem;padding:2px 8px;border-radius:999px}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--primary-light);border-radius:4px}
+.tab-active{color:var(--primary);border-bottom:3px solid var(--primary)}
+.range-slider{-webkit-appearance:none;appearance:none;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--primary-light),var(--primary))}
+.range-slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--primary);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer}
+.audio-wave{display:flex;align-items:end;gap:3px;height:40px}
+.audio-wave span{width:4px;border-radius:2px;background:var(--primary)}
+.status-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.status-active{background:var(--success);box-shadow:0 0 6px rgba(16,185,129,.5)}
+.status-inactive{background:#CBD5E1}
+.child-friendly{border-radius:20px}
+</style>
+</head>
+<body class="pb-20">
+
+<div id="app">
+<!-- Header -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+<div class="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+<div>
+<h1 class="text-xl font-extrabold text-gray-800 flex items-center gap-2">
+🧸 <span style="color:var(--primary)">Sensory</span>Play
+</h1>
+<p class="text-xs text-gray-500 -mt-0.5">Adaptive multisensory toy engine</p>
+</div>
+<div class="flex items-center gap-3">
+<button onclick="showSettings()" class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-lg" aria-label="Settings">⚙️</button>
+<button onclick="showChildProfile()" class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-lg" aria-label="Profile">👶</button>
+</div>
+</div>
+</header>
+
+<!-- Main Content -->
+<main class="max-w-lg mx-auto px-4 pt-4" id="mainContent">
+<!-- Child Status Banner -->
+<div id="childBanner" class="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl p-4 mb-4 text-white slide-up cursor-pointer" onclick="showChildProfile()">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-2xl">👶</div>
+<div class="flex-1">
+<p class="font-bold text-sm" id="childName">Set up child profile</p>
+<p class="text-xs opacity-80" id="childMeta">Tap to personalize the experience</p>
+</div>
+<div class="text-right">
+<div class="text-xs opacity-70">Session</div>
+<div class="font-bold text-lg" id="sessionTime">0:00</div>
+</div>
+</div>
+</div>
+
+<!-- Quick Actions -->
+<div class="grid grid-cols-3 gap-3 mb-5">
+<button onclick="startPlaySession()" class="sensory-btn bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center gap-1 bounce-in" style="animation-delay:0.1s">
+<div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background:rgba(74,108,247,.1)">▶️</div>
+<span class="text-xs font-semibold text-gray-700">Play</span>
+</button>
+<button onclick="showToySetup()" class="sensory-btn bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center gap-1 bounce-in" style="animation-delay:0.2s">
+<div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background:rgba(255,107,157,.1)">🧩</div>
+<span class="text-xs font-semibold text-gray-700">Toys</span>
+</button>
+<button onclick="showReports()" class="sensory-btn bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center gap-1 bounce-in" style="animation-delay:0.3s">
+<div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background:rgba(16,185,129,.1)">📊</div>
+<span class="text-xs font-semibold text-gray-700">Progress</span>
+</button>
+</div>
+
+<!-- Active Sensory Channels -->
+<div class="mb-5 slide-up">
+<div class="flex items-center justify-between mb-3">
+<h2 class="font-bold text-gray-800">🎛️ Sensory Channels</h2>
+<span class="badge bg-green-100 text-green-700 font-semibold" id="activeChannels">3 active</span>
+</div>
+<div class="space-y-3" id="channelsList">
+<!-- Populated by JS -->
+</div>
+</div>
+
+<!-- Connected Toys -->
+<div class="mb-5 slide-up">
+<div class="flex items-center justify-between mb-3">
+<h2 class="font-bold text-gray-800">🔗 Connected Toys</h2>
+<button onclick="showToySetup()" class="text-xs font-semibold" style="color:var(--primary)">+ Add</button>
+</div>
+<div id="toyList" class="space-y-2">
+<!-- Populated by JS -->
+</div>
+</div>
+
+<!-- Recent Activity -->
+<div class="mb-5 slide-up">
+<div class="flex items-center justify-between mb-3">
+<h2 class="font-bold text-gray-800">📝 Recent Activity</h2>
+</div>
+<div id="activityFeed" class="space-y-2">
+<!-- Populated by JS -->
+</div>
+</div>
+</main>
+
+<!-- Play Session Modal -->
+<div id="playModal" class="fixed inset-0 z-50 hidden">
+<div class="modal-overlay absolute inset-0 bg-black bg-opacity-40" onclick="endPlaySession()"></div>
+<div class="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl p-6 max-h-screen overflow-y-auto" style="max-height:92vh">
+<div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+<div id="playContent">
+<!-- Populated by JS -->
+</div>
+</div>
+</div>
+
+<!-- Child Profile Modal -->
+<div id="profileModal" class="fixed inset-0 z-50 hidden">
+<div class="modal-overlay absolute inset-0 bg-black bg-opacity-40" onclick="closeModal('profileModal')"></div>
+<div class="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl p-6 max-h-screen overflow-y-auto" style="max-height:92vh">
+<div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+<h2 class="text-xl font-extrabold mb-4">👶 Child Profile</h2>
+<div class="space-y-4">
+<div>
+<label class="text-sm font-semibold text-gray-600 block mb-1">Child's Name</label>
+<input type="text" id="inputName" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-400 focus:outline-none" placeholder="e.g., Emma">
+</div>
+<div>
+<label class="text-sm font-semibold text-gray-600 block mb-1">Age (months)</label>
+<input type="number" id="inputAge" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-400 focus:outline-none" placeholder="e.g., 24" min="6" max="72">
+</div>
+<div>
+<label class="text-sm font-semibold text-gray-600 block mb-1">Vision Level</label>
+<select id="inputVision" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-400 focus:outline-none bg-white">
+<option value="low">Low Vision</option>
+<option value="light_perception">Light Perception Only</option>
+<option value="none">No Vision</option>
+<option value="partial">Partial Vision</option>
+</select>
+</div>
+<div>
+<label class="text-sm font-semibold text-gray-600 block mb-1">Sensory Preferences</label>
+<div class="flex flex-wrap gap-2" id="prefTags">
+<button onclick="togglePref(this,'audio')" class="pref-tag badge border-2 border-gray-200 text-gray-600 py-1 px-3 rounded-full text-sm" data-active="false">🔊 Audio</button>
+<button onclick="togglePref(this,'haptic')" class="pref-tag badge border-2 border-gray-200 text-gray-600 py-1 px-3 rounded-full text-sm" data-active="false">📳 Haptic</button>
+<button onclick="togglePref(this,'verbal')" class="pref-tag badge border-2 border-gray-200 text-gray-600 py-1 px-3 rounded-full text-sm" data-active="false">🗣️ Verbal</button>
+<button onclick="togglePref(this,'music')" class="pref-tag badge border-2 border-gray-200 text-gray-600 py-1 px-3 rounded-full text-sm" data-active="false">🎵 Music</button>
+<button onclick="togglePref(this,'texture')" class="pref-tag badge border-2 border-gray-200 text-gray-600 py-1 px-3 rounded-full text-sm" data-active="false">🤲 Texture</button>
+</div>
+</div>
+<div>
+<label class="text-sm font-semibold text-gray-600 block mb-1">Development Goals</label>
+<select id="inputGoal" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-400 focus:outline-none bg-white">
+<option value="exploration">Sensory Exploration</option>
+<option value="motor">Fine Motor Skills</option>
+<option value="cognitive">Cognitive Development</option>
+<option value="social">Social Interaction</option>
+<option value="language">Language Development</option>
+</select>
+</div>
+<button onclick="saveProfile()" class="w-full py-3 rounded-xl text-white font-bold text-lg sensory-btn" style="background:var(--primary)">
+💾 Save Profile
+</button>
+</div>
+</div>
+</div>
+
+<!-- Toy Setup Modal -->
+<div id="toyModal" class="fixed inset-0 z-50 hidden">
+<div class="modal-overlay absolute inset-0 bg-black bg-opacity-40" onclick="closeModal('toyModal')"></div>
+<div class="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl p-6 max-h-screen overflow-y-auto" style="max-height:92vh">
+<div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+<h2 class="text-xl font-extrabold mb-2">🧩 Toy Library</h2>
+<p class="text-sm text-gray-500 mb-4">Select toys to adapt with multisensory overlays</p>
+<div id="toyLibrary" class="space-y-3">
+<!-- Populated by JS -->
+</div>
+<div class="mt-4">
+<button onclick="scanForToys()" class="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 font-semibold sensory-btn">
+🔍 Scan for New Toys
+</button>
+</div>
+</div>
+</div>
+
+<!-- Reports Modal -->
+<div id="reportsModal" class="fixed inset-0 z-50 hidden">
+<div class="modal-overlay absolute inset-0 bg-black bg-opacity-40" onclick="closeModal('reportsModal')"></div>
+<div class="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl p-6 max-h-screen overflow-y-auto" style="max-height:92vh">
+<div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+<h2 class="text-xl font-extrabold mb-4">📊 Progress Dashboard</h2>
+<div id="reportsContent">
+<!-- Populated by JS -->
+</div>
+</div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="fixed inset-0 z-50 hidden">
+<div class="modal-overlay absolute inset-0 bg-black bg-opacity-40" onclick="closeModal('settingsModal')"></div>
+<div class="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl p-6 max-h-screen overflow-y-auto" style="max-height:92vh">
+<div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+<h2 class="text-xl font-extrabold mb-4">⚙️ Settings</h2>
+<div class="space-y-4" id="settingsContent"></div>
+</div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="fixed inset-0 z-[100] hidden bg-white bg-opacity-90 flex items-center justify-center">
+<div class="text-center">
+<div class="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-indigo-200 border-t-indigo-500 animate-spin"></div>
+<p class="text-gray-600 font-semibold" id="loadingText">Analyzing...</p>
+</div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-[200] hidden">
+<div class="bg-gray-800 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-semibold" id="toastMsg"></div>
+</div>
+
+<!-- Footer -->
+<footer class="text-center py-6 text-xs text-gray-400">
+Built with AI by Papersaurus
+</footer>
+</div>
+
+<script>
+// Global AI tracking
+window.aiTotalInputTokens = 0;
+window.aiTotalOutputTokens = 0;
+window.aiTotalTime = 0;
+window.aiAliasTimes = {};
+
+// App State
+let state = {
+child: null,
+toys: [],
+channels: [
+{ id: 'audio', name: 'Audio Descriptions', icon: '🔊', enabled: true, intensity: 70, color: '#4A6CF7' },
+{ id: 'haptic', name: 'Haptic Patterns', icon: '📳', enabled: true, intensity: 50, color: '#8B5CF6' },
+{ id: 'verbal', name: 'Verbal Prompts', icon: '🗣️', enabled: true, intensity: 60, color: '#FF6B9D' },
+{ id: 'music', name: 'Musical Cues', icon: '🎵', enabled: false, intensity: 40, color: '#F59E0B' },
+{ id: 'contrast', name: 'High Contrast', icon: '🔆', enabled: false, intensity: 80, color: '#10B981' }
+],
+sessions: [],
+currentSession: null,
+activities: []
+};
+
+const toyTemplates = [
+{ id: 'blocks', name: 'Smart Blocks', icon: '🧱', type: 'Building', connected: true, adaptations: ['audio', 'haptic'] },
+{ id: 'piano', name: 'Musical Keys', icon: '🎹', type: 'Musical', connected: true, adaptations: ['audio', 'haptic', 'verbal'] },
+{ id: 'puzzle', name: 'Shape Sorter', icon: '🔷', type: 'Puzzle', connected: false, adaptations: ['verbal', 'haptic'] },
+{ id: 'plush', name: 'Interactive Bear', icon: '🧸', type: 'Comfort', connected: false, adaptations: ['audio', 'haptic', 'verbal'] },
+{ id: 'ball', name: 'Sensory Ball', icon: '⚽', type: 'Motor', connected: true, adaptations: ['audio', 'haptic'] },
+{ id: 'book', name: 'Talking Book', icon: '📖', type: 'Educational', connected: false, adaptations: ['audio', 'verbal', 'music'] }
+];
+
+// AudioContext for sound generation
+let audioCtx = null;
+function getAudioCtx() {
+if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+return audioCtx;
+}
+
+// Load state
+function loadState() {
+try {
+const saved = localStorage.getItem('sensoryplay_state');
+if (saved) {
+const parsed = JSON.parse(saved);
+state = { ...state, ...parsed };
+}
+} catch(e) {}
+if (!state.toys.length) state.toys = toyTemplates;
+}
+
+function saveState() {
+try {
+localStorage.setItem('sensoryplay_state', JSON.stringify(state));
+} catch(e) {}
+}
+
+// Toast
+function showToast(msg) {
+const t = document.getElementById('toast');
+document.getElementById('toastMsg').textContent = msg;
+t.classList.remove('hidden');
+setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+// Loading
+function showLoading(text = 'Analyzing...') {
+document.getElementById('loadingText').textContent = text;
+document.getElementById('loadingOverlay').classList.remove('hidden');
+document.getElementById('loadingOverlay').style.display = 'flex';
+}
+function hideLoading() {
+document.getElementById('loadingOverlay').classList.add('hidden');
+document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+// Modal helpers
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+
+// AI call helper with retries
+async function callAI(alias, params, retries = 3) {
+const start = Date.now();
+for (let i = 0; i < retries; i++) {
+try {
+const resp = await fetch('https://16504442930.work/run_prompt', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ alias, params })
+});
+const data = await resp.json();
+const elapsed = Date.now() - start;
+window.aiTotalTime += elapsed;
+window.aiAliasTimes[alias] = (window.aiAliasTimes[alias] || 0) + elapsed;
+if (data.input_tokens) window.aiTotalInputTokens += data.input_tokens;
+if (data.output_tokens) window.aiTotalOutputTokens += data.output_tokens;
+return data;
+} catch (e) {
+if (i === retries - 1) {
+// format error for user
+try {
+const errResp = await fetch('https://16504442930.work/run_prompt', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+alias: 'genericAI',
+params: {
+prompt: `Reformat this error message to be user-friendly and empower the user to fix it. Error: "${e.message}". Full details: "${JSON.stringify(e)}". Return a JSON object with key "friendlyError" as a string.`
+}
+})
+});
+const errData = await errResp.json();
+throw new Error(errData.friendlyError || e.message);
+} catch(e2) {
+throw new Error('Something went wrong. Please check your connection and try again. ' + e.message);
+}
+}
+await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+}
+}
+}
+
+// Sound effects
+function playTone(freq, duration = 200, type = 'sine') {
+try {
+const ctx = getAudioCtx();
+const osc = ctx.createOscillator();
+const gain = ctx.createGain();
+osc.type = type;
+osc.frequency.value = freq;
+gain.gain.setValueAtTime(0.3, ctx.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration / 1000);
+osc.connect(gain);
+gain.connect(ctx.destination);
+osc.start();
+osc.stop(ctx.currentTime + duration / 1000);
+} catch(e) {}
+}
+
+function playSuccess() { playTone(523, 150); setTimeout(() => playTone(659, 150), 150); setTimeout(() => playTone(784, 200), 300); }
+function playClick() { playTone(800, 50, 'square'); }
+function playAlert() { playTone(440, 300, 'triangle'); }
+
+// Haptic feedback
+function vibrate(pattern) {
+if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+// Render functions
+function renderChannels() {
+const list = document.getElementById('channelsList');
+const active = state.channels.filter(c => c.enabled).length;
+document.getElementById('activeChannels').textContent = `${active} active`;
+
+list.innerHTML = state.channels.map(ch => `
+<div class="bg-white rounded-2xl p-4 shadow-sm toy-card">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="text-lg">${ch.icon}</span>
+<span class="font-semibold text-sm">${ch.name}</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" class="sr-only peer" ${ch.enabled ? 'checked' : ''} onchange="toggleChannel('${ch.id}')">
+<div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+</label>
+</div>
+${ch.enabled ? `
+<div class="flex items-center gap-3">
+<span class="text-xs text-gray-500 w-8">${ch.intensity}%</span>
+<input type="range" min="10" max="100" value="${ch.intensity}" class="range-slider flex-1" onchange="setChannelIntensity('${ch.id}', this.value)" style="background:linear-gradient(90deg,${ch.color}33,${ch.color})">
+<button onclick="testChannel('${ch.id}')" class="text-xs px-3 py-1 rounded-full font-semibold" style="background:${ch.color}20;color:${ch.color}">Test</button>
+</div>
+` : ''}
+</div>
+`).join('');
+}
+
+function toggleChannel(id) {
+const ch = state.channels.find(c => c.id === id);
+if (ch) { ch.enabled = !ch.enabled; playClick(); vibrate(50); }
+saveState();
+renderChannels();
+}
+
+function setChannelIntensity(id, val) {
+const ch = state.channels.find(c => c.id === id);
+if (ch) ch.intensity = parseInt(val);
+saveState();
+}
+
+function testChannel(id) {
+vibrate([100, 50, 100]);
+const ch = state.channels.find(c => c.id === id);
+if (id === 'audio') { playTone(440, 500); showToast('🔊 Audio description: "A bright red square block"'); }
+else if (id === 'haptic') { vibrate([100, 50, 200, 50, 100]); showToast('📳 Haptic pattern sent!'); }
+else if (id === 'verbal') { speak('Great job! Can you find the round shape?'); showToast('🗣️ Verbal prompt played'); }
+else if (id === 'music') { playTone(262, 200); setTimeout(() => playTone(330, 200), 200); setTimeout(() => playTone(392, 300), 400); showToast('🎵 Musical cue played'); }
+else if (id === 'contrast') { showToast('🔆 High contrast mode activated'); }
+}
+
+function speak(text) {
+if ('speechSynthesis' in window) {
+const u = new SpeechSynthesisUtterance(text);
+u.rate = 0.85;
+u.pitch = 1.2;
+speechSynthesis.speak(u);
+}
+}
+
+function renderToys() {
+const list = document.getElementById('toyList');
+const connected = state.toys.filter(t => t.connected);
+if (!connected.length) {
+list.innerHTML = '<div class="text-center py-6 text-gray-400 text-sm">No toys connected yet.<br>Tap "Toys" to add some!</div>';
+return;
+}
+list.innerHTML = connected.map(toy => `
+<div class="bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3 toy-card">
+<div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:rgba(74,108,247,.08)">${toy.icon}</div>
+<div class="flex-1">
+<p class="font-semibold text-sm">${toy.name}</p>
+<div class="flex items-center gap-1 mt-0.5">
+<span class="status-dot status-active"></span>
+<span class="text-xs text-gray-500">${toy.adaptations.length} adaptations</span>
+</div>
+</div>
+<div class="flex gap-1">
+${toy.adaptations.map(a => {
+const ch = state.channels.find(c => c.id === a);
+return ch ? `<span class="text-xs">${ch.icon}</span>` : '';
+}).join('')}
+</div>
+</div>
+`).join('');
+}
+
+function renderActivities() {
+const feed = document.getElementById('activityFeed');
+if (!state.activities.length) {
+feed.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm">Start a play session to see activity here! 🎯</div>';
+return;
+}
+feed.innerHTML = state.activities.slice(0, 5).map(act => `
+<div class="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3">
+<span class="text-lg">${act.icon}</span>
+<div class="flex-1">
+<p class="text-sm font-semibold">${act.title}</p>
+<p class="text-xs text-gray-500">${act.time}</p>
+</div>
+${act.badge ? `<span class="badge ${act.badgeClass}">${act.badge}</span>` : ''}
+</div>
+`).join('');
+}
+
+function renderBanner() {
+if (state.child) {
+document.getElementById('childName').textContent = `${state.child.name} 👋`;
+const visionMap = { low: 'Low Vision', light_perception: 'Light Perception', none: 'No Vision', partial: 'Partial Vision' };
+document.getElementById('childMeta').textContent = `${state.child.age}mo · ${visionMap[state.child.vision] || state.child.vision} · ${state.child.goal}`;
+}
+}
+
+// Child Profile
+function showChildProfile() {
+openModal('profileModal');
+if (state.child) {
+document.getElementById('inputName').value = state.child.name || '';
+document.getElementById('inputAge').value = state.child.age || '';
+document.getElementById('inputVision').value = state.child.vision || 'low';
+document.getElementById('inputGoal').value = state.child.goal || 'exploration';
+// restore prefs
+document.querySelectorAll('.pref-tag').forEach(btn => {
+const pref = btn.getAttribute('onclick').match(/'(\w+)'/)[1];
+const active = state.child.preferences && state.child.preferences.includes(pref);
+btn.dataset.active = active;
+btn.className = active
+? 'pref-tag badge border-2 border-indigo-500 text-indigo-600 bg-indigo-50 py-1 px-3 rounded-full text-sm'
+: 'pref-tag badge border-2 border-gray-200 text-gray-600 py-1 px-3 rounded-full text-sm';
+});
+}
+}
+
+function togglePref(btn, pref) {
+const active = btn.dataset.active === 'true';
+btn.dataset.active = !active;
+btn.className = !active
+? 'pref-tag badge border-2 border-indigo-500 text-indigo-600 bg-indigo-50 py-1 px-3 rounded-full text-sm'
+: 'pref-tag badge border-2 border-gray-200 text-gray-600 py-1 px-3 rounded-full text-sm';
+playClick();
+vibrate(30);
+}
+
+function saveProfile() {
+const name = document.getElementById('inputName').value.trim();
+const age = parseInt(document.getElementById('inputAge').value);
+const vision = document.getElementById('inputVision').value;
+const goal = document.getElementById('inputGoal').value;
+const prefs = [];
+document.querySelectorAll('.pref-tag').forEach(btn => {
+if (btn.dataset.active === 'true') {
+prefs.push(btn.getAttribute('onclick').match(/'(\w+)'/)[1]);
+}
+});
+
+if (!name) { showToast('Please enter a name'); return; }
+if (!age || age < 6 || age > 72) { showToast('Please enter age between 6-72 months'); return; }
+
+state.child = { name, age, vision, goal, preferences: prefs };
+saveState();
+renderBanner();
+closeModal('profileModal');
+playSuccess();
+vibrate([100, 50, 100]);
+showToast(`✅ Profile saved for ${name}!`);
+
+addActivity('👶', `Profile updated for ${name}`, 'Saved', 'bg-green-100 text-green-700');
+}
+
+// Toy Setup
+function showToySetup() {
+openModal('toyModal');
+renderToyLibrary();
+}
+
+function renderToyLibrary() {
+const lib = document.getElementById('toyLibrary');
+lib.innerHTML = state.toys.map(toy => `
+<div class="bg-gray-50 rounded-2xl p-4 flex items-center gap-3 toy-card">
+<div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${toy.connected ? 'bg-indigo-100' : 'bg-gray-200'}">${toy.icon}</div>
+<div class="flex-1">
+<p class="font-bold text-sm">${toy.name}</p>
+<p class="text-xs text-gray-500">${toy.type} · ${toy.adaptations.length} channels</p>
+<div class="flex gap-1 mt-1">
+${toy.adaptations.map(a => {
+const ch = state.channels.find(c => c.id === a);
+return ch ? `<span class="badge bg-gray-200 text-gray-600">${ch.icon} ${ch.name.split(' ')[0]}</span>` : '';
+}).join('')}
+</div>
+</div>
+<button onclick="toggleToy('${toy.id}')" class="px-3 py-2 rounded-xl text-sm font-bold sensory-btn ${toy.connected ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}">
+${toy.connected ? '✓ On' : 'Off'}
+</button>
+</div>
+`).join('');
+}
+
+function toggleToy(id) {
+const toy = state.toys.find(t => t.id === id);
+if (toy) {
+toy.connected = !toy.connected;
+playClick();
+vibrate(toy.connected ? [50, 30, 50] : [50]);
+}
+saveState();
+renderToyLibrary();
+renderToys();
+addActivity(toy.icon, `${toy.name} ${toy.connected ? 'connected' : 'disconnected'}`, toy.connected ? 'Active' : 'Off', toy.connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500');
+}
+
+function scanForToys() {
+showLoading('Scanning for nearby toys...');
+vibrate([50, 50, 50, 50, 50]);
+setTimeout(() => {
+hideLoading();
+showToast('🔍 Found 0 new toys nearby');
+playAlert();
+}, 2000);
+}
+
+// Play Session
+let sessionInterval = null;
+let sessionSeconds = 0;
+let currentActivity = null;
+
+async function startPlaySession() {
+if (!state.child) {
+showToast('👶 Please set up a child profile first!');
+showChildProfile();
+return;
+}
+
+const connectedToys = state.toys.filter(t => t.connected);
+if (!connectedToys.length) {
+showToast('🧩 Please connect at least one toy!');
+showToySetup();
+return;
+}
+
+openModal('playModal');
+sessionSeconds = 0;
+updateSessionTimer();
+sessionInterval = setInterval(updateSessionTimer, 1000);
+
+showLoading('🧠 AI is generating a personalized play plan...');
+
+try {
+const enabledChannels = state.channels.filter(c => c.enabled).map(c => c.id);
+const toyNames = connectedToys.map(t => t.name);
+
+const result = await callAI('genericAI', {
+prompt: `You are an expert early childhood therapist specializing in visual impairment adaptation. Generate a personalized play session for a ${state.child.age}-month-old child named ${state.child.name} with ${state.child.vision} vision. 
+
+Connected toys: ${toyNames.join(', ')}
+Active sensory channels: ${enabledChannels.join(', ')}
+Development goal: ${state.child.goal}
+Preferred senses: ${(state.child.preferences || []).join(', ') || 'all'}
+
+Return a JSON object with this EXACT structure:
+{
+  "sessionTitle": string (a fun, short title for this play session),
+  "greeting": string (a warm 1-sentence greeting to say aloud to the child),
+  "activities": [
+    {
+      "name": string (activity name, max 4 words),
+      "description": string (what the child does, 1-2 sentences, simple language),
+      "toy": string (which toy to use),
+      "channels": string[] (which sensory channels: "audio", "haptic", "verbal", "music"),
+      "audioDesc": string (what to describe audibly when this activity starts),
+      "hapticPattern": string (description of vibration pattern like "gentle pulse" or "double tap"),
+      "verbalPrompt": string (what to say to encourage the child),
+      "difficulty": number (1-5 scale),
+      "durationMinutes": number (1-5),
+      "successCriteria": string (how to know the child completed it)
+    }
+  ] (exactly 4 activities),
+  "adaptationTips": string[] (3 tips for the parent/therapist, each a string),
+  "overallDifficulty": number (1-5)
+}`
+});
+
+hideLoading();
+currentActivity = result;
+renderPlaySession(result);
+playSuccess();
+vibrate([100, 50, 200]);
+
+if (result.greeting) {
+speak(result.greeting);
+}
+
+addActivity('▶️', `Play session started: ${result.sessionTitle || 'Custom Session'}`, 'Active', 'bg-indigo-100 text-indigo-700');
+
+} catch (e) {
+hideLoading();
+// Fallback content
+const fallback = generateFallbackSession();
+currentActivity = fallback;
+renderPlaySession(fallback);
+showToast('Using offline play plan 📱');
+}
+}
+
+function generateFallbackSession() {
+const connectedToys = state.toys.filter(t => t.connected);
+return {
+sessionTitle: "Sensory Discovery Time",
+greeting: `Hello ${state.child?.name || 'little one'}! Let's explore together!`,
+activities: [
+{
+name: "Sound Explorer",
+description: "Shake and tap the toy to discover different sounds. Listen carefully to each one!",
+toy: connectedToys[0]?.name || "Smart Blocks",
+channels: ["audio", "haptic"],
+audioDesc: "We're going to make some fun sounds together!",
+hapticPattern: "gentle pulse",
+verbalPrompt: "Great listening! Can you make that sound again?",
+difficulty: 1,
+durationMinutes: 3,
+successCriteria: "Child responds to or imitates sound"
+},
+{
+name: "Texture Touch",
+description: "Feel the different surfaces. Which one is smooth? Which one is bumpy?",
+toy: connectedToys[0]?.name || "Shape Sorter",
+channels: ["verbal", "haptic"],
+audioDesc: "Let's feel different textures with our fingers!",
+hapticPattern: "soft vibration",
+verbalPrompt: "You found the bumpy one! Wonderful!",
+difficulty: 2,
+durationMinutes: 3,
+successCriteria: "Child distinguishes between textures"
+},
+{
+name: "Musical Match",
+description: "Listen to the melody and try to find the toy that made it.",
+toy: connectedToys[0]?.name || "Musical Keys",
+channels: ["audio", "music"],
+audioDesc: "A musical game! Listen for the melody!",
+hapticPattern: "rhythmic taps",
+verbalPrompt: "You're so good at finding sounds!",
+difficulty: 2,
+durationMinutes: 2,
+successCriteria: "Child reaches toward correct sound source"
+},
+{
+name: "Counting Fun",
+description: "Let's count together! Each tap makes a number.",
+toy: connectedToys[0]?.name || "Smart Blocks",
+channels: ["verbal", "haptic", "audio"],
+audioDesc: "Time to count! One... two... three!",
+hapticPattern: "single tap per count",
+verbalPrompt: "Amazing counting! Can we do it again?",
+difficulty: 3,
+durationMinutes: 2,
+successCriteria: "Child participates in counting sequence"
+}
+],
+adaptationTips: [
+"Follow the child's pace - pause when they need time to process",
+"Use consistent verbal cues so the child knows what to expect",
+"Celebrate every attempt, not just successes"
+],
+overallDifficulty: 2
+};
+}
+
+function renderPlaySession(session) {
+const content = document.getElementById('playContent');
+const actList = session.activities || [];
+
+content.innerHTML = `
+<div class="text-center mb-4">
+<h3 class="text-xl font-extrabold" style="color:var(--primary)">${session.sessionTitle || 'Play Session'}</h3>
+<p class="text-sm text-gray-500 mt-1">${session.greeting || ''}</p>
+<div class="flex items-center justify-center gap-4 mt-3">
+<div class="text-center">
+<div class="font-bold text-lg" id="playSessionTime">0:00</div>
+<div class="text-xs text-gray-500">Duration</div>
+</div>
+<div class="w-px h-8 bg-gray-200"></div>
+<div class="text-center">
+<div class="font-bold text-lg">${actList.length}</div>
+<div class="text-xs text-gray-500">Activities</div>
+</div>
+<div class="w-px h-8 bg-gray-200"></div>
+<div class="text-center">
+<div class="flex items-center gap-0.5">
+${Array.from({length: 5}, (_, i) => `<span class="text-sm">${i < (session.overallDifficulty || 2) ? '⭐' : '☆'}</span>`).join('')}
+</div>
+<div class="text-xs text-gray-500">Level</div>
+</div>
+</div>
+</div>
+
+<div class="space-y-3 mb-4" id="activityList">
+${actList.map((act, i) => `
+<div class="bg-gray-50 rounded-2xl p-4 activity-item" id="activity-${i}" data-index="${i}">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${i === 0 ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-500'}" id="actNum-${i}">
+${i + 1}
+</div>
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<h4 class="font-bold text-sm">${act.name}</h4>
+<span class="text-xs text-gray-500">${act.durationMinutes || 2}min</span>
+</div>
+<p class="text-xs text-gray-600 mt-1">${act.description}</p>
+<div class="flex items-center gap-2 mt-2">
+<span class="badge bg-indigo-100 text-indigo-700">${act.toy}</span>
+${(act.channels || []).map(ch => {
+const chObj = state.channels.find(c => c.id === ch);
+return chObj ? `<span class="text-sm">${chObj.icon}</span>` : '';
+}).join('')}
+</div>
+<div id="actControls-${i}" class="${i === 0 ? '' : 'hidden'} mt-3 space-y-2">
+<div class="bg-white rounded-xl p-3 text-xs">
+<p class="font-semibold text-gray-700 mb-1">🔊 Audio: <span class="font-normal text-gray-500">${act.audioDesc || ''}</span></p>
+<p class="font-semibold text-gray-700 mb-1">📳 Haptic: <span class="font-normal text-gray-500">${act.hapticPattern || ''}</span></p>
+<p class="font-semibold text-gray-700">🗣️ Prompt: <span class="font-normal text-gray-500">${act.verbalPrompt || ''}</span></p>
+</div>
+<div class="flex gap-2">
+<button onclick="playActivityAudio(${i})" class="flex-1 py-2 rounded-xl text-xs font-bold sensory-btn bg-indigo-100 text-indigo-700">🔊 Play Audio</button>
+<button onclick="sendHaptic(${i})" class="flex-1 py-2 rounded-xl text-xs font-bold sensory-btn bg-purple-100 text-purple-700">📳 Haptic</button>
+<button onclick="speakPrompt(${i})" class="flex-1 py-2 rounded-xl text-xs font-bold sensory-btn bg-pink-100 text-pink-700">🗣️ Speak</button>
+</div>
+<div class="flex gap-2 mt-1">
+<button onclick="recordResponse(${i}, 'positive')" class="flex-1 py-2 rounded-xl text-xs font-bold sensory-btn bg-green-100 text-green-700">😊 Engaged</button>
+<button onclick="recordResponse(${i}, 'neutral')" class="flex-1 py-2 rounded-xl text-xs font-bold sensory-btn bg-yellow-100 text-yellow-700">😐 Neutral</button>
+<button onclick="recordResponse(${i}, 'negative')" class="flex-1 py-2 rounded-xl text-xs font-bold sensory-btn bg-red-100 text-red-700">😢 Distressed</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+`).join('')}
+</div>
+
+${session.adaptationTips ? `
+<div class="bg-amber-50 rounded-2xl p-4 mb-4">
+<h4 class="font-bold text-sm text-amber-800 mb-2">💡 Adaptation Tips</h4>
+<ul class="space-y-1">
+${session.adaptationTips.map(tip => `<li class="text-xs text-amber-700 flex items-start gap-2"><span>•</span><span>${tip}</span></li>`).join('')}
+</ul>
+</div>
+` : ''}
+
+<div class="flex gap-3">
+<button onclick="endPlaySession()" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-bold sensory-btn">⏹️ End Session</button>
+<button onclick="generateSessionReport()" class="flex-1 py-3 rounded-xl text-white font-bold sensory-btn" style="background:var(--primary)">📊 Report</button>
+</div>
+`;
+}
+
+let currentActivityIndex = 0;
+let sessionResponses = [];
+
+function playActivityAudio(i) {
+const act = currentActivity?.activities?.[i];
+if (act?.audioDesc) {
+speak(act.audioDesc);
+playTone(440, 200);
+vibrate(50);
+}
+}
+
+function sendHaptic(i) {
+const act = currentActivity?.activities?.[i];
+const patterns = {
+'gentle pulse': [100, 50, 100],
+'double tap': [50, 30, 50],
+'soft vibration': [200],
+'rhythmic taps': [50, 50, 50, 50, 50, 50, 50],
+'single tap per count': [80, 200, 80, 200, 80]
+};
+const pattern = patterns[act?.hapticPattern] || [100, 50, 100];
+vibrate(pattern);
+showToast('📳 Haptic pattern sent!');
+}
+
+function speakPrompt(i) {
+const act = currentActivity?.activities?.[i];
+if (act?.verbalPrompt) {
+speak(act.verbalPrompt);
+vibrate(30);
+}
+}
+
+function recordResponse(activityIndex, response) {
+sessionResponses.push({
+activity: activityIndex,
+response,
+timestamp: Date.now(),
+seconds: sessionSeconds
+});
+
+const btn = event.target;
+btn.classList.add('haptic-pulse');
+setTimeout(() => btn.classList.remove('haptic-pulse'), 300);
+
+playClick();
+vibrate(response === 'positive' ? [50, 30, 50] : response === 'negative' ? [200] : [80]);
+
+const acts = currentActivity?.activities || [];
+if (activityIndex < acts.length - 1) {
+// Move to next activity
+const next = activityIndex + 1;
+document.getElementById(`actControls-${activityIndex}`).classList.add('hidden');
+document.getElementById(`actNum-${activityIndex}`).className = 'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-green-500 text-white';
+document.getElementById(`actNum-${activityIndex}`).textContent = '✓';
+document.getElementById(`actControls-${next}`).classList.remove('hidden');
+document.getElementById(`actNum-${next}`).className = 'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-indigo-500 text-white';
+currentActivityIndex = next;
+
+const nextAct = acts[next];
+if (nextAct?.audioDesc) {
+setTimeout(() => speak(nextAct.audioDesc), 500);
+}
+
+showToast(`Activity ${activityIndex + 1} complete! Moving to ${next + 1} ✨`);
+} else {
+document.getElementById(`actControls-${activityIndex}`).classList.add('hidden');
+document.getElementById(`actNum-${activityIndex}`).className = 'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-green-500 text-white';
+document.getElementById(`actNum-${activityIndex}`).textContent = '✓';
+playSuccess();
+vibrate([100, 50, 100, 50, 200]);
+showToast('🎉 All activities complete! Amazing work!');
+speak(`${state.child?.name || 'Great job'}! You finished all the activities! You're amazing!`);
+}
+}
+
+function updateSessionTimer() {
+sessionSeconds++;
+const mins = Math.floor(sessionSeconds / 60);
+const secs = sessionSeconds % 60;
+const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+document.getElementById('sessionTime').textContent = timeStr;
+const playTimer = document.getElementById('playSessionTime');
+if (playTimer) playTimer.textContent = timeStr;
+}
+
+function endPlaySession() {
+if (sessionInterval) clearInterval(sessionInterval);
+closeModal('playModal');
+if (sessionSeconds > 10) {
+const session = {
+date: new Date().toISOString(),
+duration: sessionSeconds,
+responses: sessionResponses,
+title: currentActivity?.sessionTitle || 'Play Session',
+activities: (currentActivity?.activities || []).length
+};
+state.sessions.push(session);
+saveState();
+addActivity('⏹️', `Session ended: ${Math.floor(sessionSeconds / 60)}min`, 'Complete', 'bg-gray-100 text-gray-700');
+}
+sessionSeconds = 0;
+sessionResponses = [];
+currentActivityIndex = 0;
+document.getElementById('sessionTime').textContent = '0:00';
+renderAll();
+}
+
+async function generateSessionReport() {
+if (!sessionResponses.length) {
+showToast('Record some responses first!');
+return;
+}
+
+showLoading('🧠 Generating developmental report...');
+
+try {
+const positiveCount = sessionResponses.filter(r => r.response === 'positive').length;
+const neutralCount = sessionResponses.filter(r => r.response === 'neutral').length;
+const negativeCount = sessionResponses.filter(r => r.response === 'negative').length;
+
+const result = await callAI('genericAI', {
+prompt: `You are an early childhood developmental specialist. Analyze this play session for a ${state.child?.age || 24}-month-old child named ${state.child?.name || 'child'} with ${state.child?.vision || 'low'} vision.
+
+Session: "${currentActivity?.sessionTitle || 'Play Session'}"
+Duration: ${sessionSeconds} seconds
+Responses recorded: ${positiveCount} positive (engaged), ${neutralCount} neutral, ${negativeCount} negative (distressed)
+Activities completed: ${sessionResponses.length} of ${(currentActivity?.activities || []).length}
+Development goal: ${state.child?.goal || 'exploration'}
+
+Return a JSON object with this EXACT structure:
+{
+  "summary": string (2-3 sentence summary of the session, warm and encouraging tone),
+  "engagementScore": number (0-100, percentage),
+  "strengths": string[] (3 observed strengths as strings),
+  "areasToImprove": string[] (2 areas for development as strings),
+  "recommendations": string[] (3 specific recommendations for next session as strings),
+  "channelEffectiveness": { "audio": number, "haptic": number, "verbal": number } (each 0-100),
+  "nextSessionSuggestion": string (1 sentence about what to try next)
+}`
+});
+
+hideLoading();
+
+const report = result;
+const reportHTML = `
+<div class="text-center mb-4">
+<div class="text-4xl mb-2">📊</div>
+<h3 class="text-lg font-extrabold">Session Report</h3>
+</div>
+<div class="bg-indigo-50 rounded-2xl p-4 mb-3">
+<p class="text-sm text-indigo-800">${report.summary || 'Great session!'}</p>
+</div>
+<div class="grid grid-cols-3 gap-2 mb-3">
+<div class="bg-white rounded-xl p-3 text-center shadow-sm">
+<div class="text-2xl font-extrabold" style="color:var(--primary)">${report.engagementScore || Math.round((positiveCount / Math.max(sessionResponses.length, 1)) * 100)}%</div>
+<div class="text-xs text-gray-500">Engagement</div>
+</div>
+<div class="bg-white rounded-xl p-3 text-center shadow-sm">
+<div class="text-2xl font-extrabold text-green-600">${positiveCount}</div>
+<div class="text-xs text-gray-500">Positive</div>
+</div>
+<div class="bg-white rounded-xl p-3 text-center shadow-sm">
+<div class="text-2xl font-extrabold text-gray-600">${Math.floor(sessionSeconds / 60)}m</div>
+<div class="text-xs text-gray-500">Duration</div>
+</div>
+</div>
+${report.strengths ? `
+<div class="bg-green-50 rounded-xl p-3 mb-3">
+<h4 class="text-sm font-bold text-green-800 mb-1">💪 Strengths</h4>
+${report.strengths.map(s => `<p class="text-xs text-green-700">• ${s}</p>`).join('')}
+</div>` : ''}
+${report.recommendations ? `
+<div class="bg-blue-50 rounded-xl p-3 mb-3">
+<h4 class="text-sm font-bold text-blue-800 mb-1">💡 Recommendations</h4>
+${report.recommendations.map(r => `<p class="text-xs text-blue-700">• ${r}</p>`).join('')}
+</div>` : ''}
+${report.nextSessionSuggestion ? `
+<div class="bg-purple-50 rounded-xl p-3 mb-3">
+<h4 class="text-sm font-bold text-purple-800 mb-1">🔮 Next Time</h4>
+<p class="text-xs text-purple-700">${report.nextSessionSuggestion}</p>
+</div>` : ''}
+`;
+
+document.getElementById('playContent').innerHTML = reportHTML + `
+<button onclick="endPlaySession()" class="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-bold sensory-btn mt-3">✅ Done</button>
+`;
+
+} catch (e) {
+hideLoading();
+const score = Math.round((sessionResponses.filter(r => r.response === 'positive').length / Math.max(sessionResponses.length, 1)) * 100);
+showToast(`📊 Engagement: ${score}% - ${score > 60 ? 'Great session!' : 'Keep exploring!'}`);
+}
+}
+
+// Reports
+function showReports() {
+openModal('reportsModal');
+renderReports();
+}
+
+function renderReports() {
+const content = document.getElementById('reportsContent');
+if (!state.sessions.length) {
+content.innerHTML = `
+<div class="text-center py-8">
+<div class="text-5xl mb-3">📊</div>
+<h3 class="font-bold text-gray-600">No sessions yet</h3>
+<p class="text-sm text-gray-400 mt-1">Start a play session to track progress!</p>
+</div>`;
+return;
+}
+
+const totalTime = state.sessions.reduce((a, s) => a + (s.duration || 0), 0);
+const totalActivities = state.sessions.reduce((a, s) => a + (s.activities || 0), 0);
+const allResponses = state.sessions.flatMap(s => s.responses || []);
+const positiveRate = allResponses.length ? Math.round((allResponses.filter(r => r.response === 'positive').length / allResponses.length) * 100) : 0;
+
+content.innerHTML = `
+<div class="grid grid-cols-2 gap-3 mb-4">
+<div class="bg-indigo-50 rounded-2xl p-4 text-center">
+<div class="text-3xl font-extrabold" style="color:var(--primary)">${state.sessions.length}</div>
+<div class="text-xs text-gray-500 mt-1">Total Sessions</div>
+</div>
+<div class="bg-green-50 rounded-2xl p-4 text-center">
+<div class="text-3xl font-extrabold text-green-600">${positiveRate}%</div>
+<div class="text-xs text-gray-500 mt-1">Engagement Rate</div>
+</div>
+<div class="bg-purple-50 rounded-2xl p-4 text-center">
+<div class="text-3xl font-extrabold text-purple-600">${Math.floor(totalTime / 60)}</div>
+<div class="text-xs text-gray-500 mt-1">Total Minutes</div>
+</div>
+<div class="bg-amber-50 rounded-2xl p-4 text-center">
+<div class="text-3xl font-extrabold text-amber-600">${totalActivities}</div>
+<div class="text-xs text-gray-500 mt-1">Activities Done</div>
+</div>
+</div>
+<h3 class="font-bold text-sm mb-2">Session History</h3>
+<div class="space-y-2">
+${state.sessions.slice().reverse().map(s => {
+const date = new Date(s.date);
+const pos = (s.responses || []).filter(r => r.response === 'positive').length;
+const total = (s.responses || []).length;
+return `
+<div class="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-lg shadow-sm">🎯</div>
+<div class="flex-1">
+<p class="font-semibold text-sm">${s.title || 'Play Session'}</p>
+<p class="text-xs text-gray-500">${date.toLocaleDateString()} · ${Math.floor(s.duration / 60)}min · ${pos}/${total} positive</p>
+</div>
+</div>`;
+}).join('')}
+</div>
+<button onclick="clearHistory()" class="w-full mt-4 py-2 rounded-xl bg-red-50 text-red-500 text-sm font-semibold sensory-btn">🗑️ Clear History</button>
+`;
+}
+
+function clearHistory() {
+if (confirm('Clear all session history?')) {
+state.sessions = [];
+state.activities = [];
+saveState();
+renderReports();
+renderActivities();
+showToast('History cleared');
+}
+}
+
+// Settings
+function showSettings() {
+openModal('settingsModal');
+document.getElementById('settingsContent').innerHTML = `
+<div class="space-y-4">
+<div class="bg-gray-50 rounded-2xl p-4">
+<h3 class="font-bold text-sm mb-3">🔊 Audio Settings</h3>
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="text-sm">Speech Rate</span>
+<select id="speechRate" class="border rounded-lg px-3 py-1 text-sm bg-white" onchange="saveSetting('speechRate', this.value)">
+<option value="0.7">Slow</option>
+<option value="0.85" selected>Normal</option>
+<option value="1.0">Fast</option>
+</select>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-sm">Voice Pitch</span>
+<select id="voicePitch" class="border rounded-lg px-3 py-1 text-sm bg-white" onchange="saveSetting('voicePitch', this.value)">
+<option value="0.8">Low</option>
+<option value="1.0">Normal</option>
+<option value="1.2" selected>High (Child-friendly)</option>
+</select>
+</div>
+</div>
+</div>
+<div class="bg-gray-50 rounded-2xl p-4">
+<h3 class="font-bold text-sm mb-3">📳 Haptic Settings</h3>
+<div class="flex items-center justify-between">
+<span class="text-sm">Vibration Strength</span>
+<select class="border rounded-lg px-3 py-1 text-sm bg-white">
+<option>Light</option>
+<option selected>Medium</option>
+<option>Strong</option>
+</select>
+</div>
+</div>
+<div class="bg-gray-50 rounded-2xl p-4">
+<h3 class="font-bold text-sm mb-3">🎨 Display</h3>
+<div class="flex items-center justify-between">
+<span class="text-sm">High Contrast Mode</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" class="sr-only peer">
+<div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+</label>
+</div>
+<div class="flex items-center justify-between mt-3">
+<span class="text-sm">Large Touch Targets</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" class="sr-only peer" checked>
+<div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+</label>
+</div>
+</div>
+<div class="bg-gray-50 rounded-2xl p-4">
+<h3 class="font-bold text-sm mb-3">ℹ️ About</h3>
+<p class="text-xs text-gray-500">Multi-Sensory Toy Adaptive Engine v1.0</p>
+<p class="text-xs text-gray-500 mt-1">A software-first approach that retrofits mainstream smart toys into adaptive multisensory experiences.</p>
+<p class="text-xs text-gray-400 mt-2">For toy manufacturers, therapists, and parents of visually impaired toddlers.</p>
+</div>
+<button onclick="resetApp()" class="w-full py-2 rounded-xl bg-red-50 text-red-500 text-sm font-semibold sensory-btn">🔄 Reset All Data</button>
+</div>
+`;
+}
+
+function saveSetting(key, value) {
+localStorage.setItem('sensoryplay_' + key, value);
+}
+
+function resetApp() {
+if (confirm('Reset all data? This cannot be undone.')) {
+localStorage.removeItem('sensoryplay_state');
+location.reload();
+}
+}
+
+// Activity Feed
+function addActivity(icon, title, badge, badgeClass) {
+const now = new Date();
+const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+state.activities.unshift({ icon, title, time: timeStr, badge, badgeClass });
+if (state.activities.length > 20) state.activities = state.activities.slice(0, 20);
+saveState();
+renderActivities();
+}
+
+// Render all
+function renderAll() {
+renderChannels();
+renderToys();
+renderActivities();
+renderBanner();
+}
+
+// Init
+loadState();
+renderAll();
+
+// Welcome message for new users
+if (!state.child) {
+setTimeout(() => {
+showToast('👋 Welcome! Set up a child profile to get started');
+}, 1000);
+}
+</script>
+</body>
+</html>
